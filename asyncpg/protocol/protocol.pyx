@@ -488,6 +488,26 @@ cdef class BaseProtocol(CoreProtocol):
         return status_msg
 
     @cython.iterable_coroutine
+    async def close_portal(self, name, timeout):
+        if self.cancel_waiter is not None:
+            await self.cancel_waiter
+        if self.cancel_sent_waiter is not None:
+            await self.cancel_sent_waiter
+            self.cancel_sent_waiter = None
+
+        self._check_state()
+
+        timeout = self._get_timeout_impl(timeout)
+        waiter = self._new_waiter(timeout)
+        try:
+            self._close(name, True)  # network op
+        except Exception as ex:
+            waiter.set_exception(ex)
+            self._coreproto_error()
+        finally:
+            return await waiter
+
+    @cython.iterable_coroutine
     async def close_statement(self, PreparedStatementState state, timeout):
         if self.cancel_waiter is not None:
             await self.cancel_waiter
