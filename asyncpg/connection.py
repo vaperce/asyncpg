@@ -1481,8 +1481,13 @@ class Connection(metaclass=ConnectionMeta):
             if self._protocol.is_in_transaction() or not retry:
                 raise
             else:
+                if not self._server_caps.implicit_portal_close:
+                    await self._close_default_portal()
                 return await self._do_execute(
                     query, executor, timeout, retry=False)
+        else:
+            if not self._server_caps.implicit_portal_close:
+                await self._close_default_portal()
 
         return result, stmt
 
@@ -1867,7 +1872,7 @@ class _ConnectionProxy:
 ServerCapabilities = collections.namedtuple(
     'ServerCapabilities',
     ['advisory_locks', 'notifications', 'plpgsql', 'sql_reset',
-     'sql_close_all', 'close_portal_on_session_end'])
+     'sql_close_all', 'implicit_portal_close'])
 ServerCapabilities.__doc__ = 'PostgreSQL server capabilities.'
 
 
@@ -1879,7 +1884,7 @@ def _detect_server_capabilities(server_version, connection_settings):
         plpgsql = False
         sql_reset = True
         sql_close_all = False
-        close_portal_on_session_end = False
+        implicit_portal_close = True
     elif hasattr(connection_settings, 'crdb_version'):
         # CockroachDB detected.
         advisory_locks = False
@@ -1887,7 +1892,7 @@ def _detect_server_capabilities(server_version, connection_settings):
         plpgsql = False
         sql_reset = False
         sql_close_all = False
-        close_portal_on_session_end = True
+        implicit_portal_close = False
     elif hasattr(connection_settings, 'crate_version'):
         # CrateDB detected.
         advisory_locks = False
@@ -1895,7 +1900,7 @@ def _detect_server_capabilities(server_version, connection_settings):
         plpgsql = False
         sql_reset = False
         sql_close_all = False
-        close_portal_on_session_end = False
+        implicit_portal_close = True
     else:
         # Standard PostgreSQL server assumed.
         advisory_locks = True
@@ -1903,7 +1908,7 @@ def _detect_server_capabilities(server_version, connection_settings):
         plpgsql = True
         sql_reset = True
         sql_close_all = True
-        close_portal_on_session_end = False
+        implicit_portal_close = True
 
     return ServerCapabilities(
         advisory_locks=advisory_locks,
@@ -1911,7 +1916,7 @@ def _detect_server_capabilities(server_version, connection_settings):
         plpgsql=plpgsql,
         sql_reset=sql_reset,
         sql_close_all=sql_close_all,
-        close_portal_on_session_end=close_portal_on_session_end
+        implicit_portal_close=implicit_portal_close
     )
 
 

@@ -176,8 +176,6 @@ class Transaction(connresource.ConnectionResource):
             query = 'COMMIT;'
 
         try:
-            if self._connection._server_caps.close_portal_on_session_end:
-                await self._connection._close_default_portal()
             await self._connection.execute(query)
         except BaseException:
             self._state = TransactionState.FAILED
@@ -197,8 +195,6 @@ class Transaction(connresource.ConnectionResource):
             query = 'ROLLBACK;'
 
         try:
-            if self._connection._server_caps.close_portal_on_session_end:
-                await self._connection._close_default_portal()
             await self._connection.execute(query)
         except BaseException:
             self._state = TransactionState.FAILED
