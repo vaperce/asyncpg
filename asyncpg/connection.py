@@ -1481,12 +1481,11 @@ class Connection(metaclass=ConnectionMeta):
             if self._protocol.is_in_transaction() or not retry:
                 raise
             else:
-                if not self._server_caps.implicit_portal_close:
-                    await self._close_default_portal()
                 return await self._do_execute(
                     query, executor, timeout, retry=False)
         else:
-            if not self._server_caps.implicit_portal_close:
+            if (self._protocol.is_in_transaction() and
+                    not self._server_caps.implicit_portal_close):
                 await self._close_default_portal()
 
         return result, stmt
