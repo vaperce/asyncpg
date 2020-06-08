@@ -91,6 +91,7 @@ class Connection(metaclass=ConnectionMeta):
 
         self._reset_query = None
         self._proxy = None
+        self._last_portal = None
 
         # Used to serialize operations that might involve anonymous
         # statements.  Specifically, we want to make the following
@@ -269,6 +270,7 @@ class Connection(metaclass=ConnectionMeta):
         self._check_open()
 
         if not args:
+            await self._close_last_portal()
             return await self._protocol.query(query, timeout)
 
         _, status, _ = await self._execute(query, args, 0, timeout, True)
@@ -1173,12 +1175,26 @@ class Connection(metaclass=ConnectionMeta):
             stmt.mark_closed()
             self._stmts_to_close.add(stmt)
 
+    async def _close_last_portal(self, new_portal=None):
+        # Called to fix missing implementation of Cockroach
+        if self._server_caps.implicit_portal_close:
+            return
+
+        # We care only about the last portal because Cockroach can handle only
+        # a single portal at a time so if more than one portal are opened we
+        # let it fail
+        if self._last_portal and self._protocol.is_in_transaction():
+            await self._protocol.close_portal(
+                self._last_portal, protocol.NO_TIMEOUT)
+        self._last_portal = new_portal
+
     async def _close_default_portal(self):
         # Called to fix missing implementation of Cockroach
-        # They don't close portals on session end leading to trigger
-        # an exception on their side
-        # This behavior still exists as of version 20.1.1 of Cockroach
-        await self._protocol.close_portal('', protocol.NO_TIMEOUT)
+        if self._server_caps.implicit_portal_close:
+            return
+
+        if self._protocol.is_in_transaction():
+            await self._protocol.close_portal('', protocol.NO_TIMEOUT)
 
     async def _cleanup_stmts(self):
         # Called whenever we create a new prepared statement in
@@ -1426,6 +1442,8 @@ class Connection(metaclass=ConnectionMeta):
         return result
 
     async def _do_execute(self, query, executor, timeout, retry=True):
+        await self._close_last_portal()
+
         if timeout is None:
             stmt = await self._get_statement(query, None)
         else:
@@ -1484,9 +1502,7 @@ class Connection(metaclass=ConnectionMeta):
                 return await self._do_execute(
                     query, executor, timeout, retry=False)
         else:
-            if (self._protocol.is_in_transaction() and
-                    not self._server_caps.implicit_portal_close):
-                await self._close_default_portal()
+            await self._close_default_portal()
 
         return result, stmt
 

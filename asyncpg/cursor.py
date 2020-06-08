@@ -93,6 +93,7 @@ class BaseCursor(connresource.ConnectionResource):
         protocol = con._protocol
 
         self._portal_name = con._get_unique_id('portal')
+        await con._close_last_portal(self._portal_name)
         buffer, _, self._exhausted = await protocol.bind_execute(
             self._state, self._args, self._portal_name, n, True, timeout)
         return buffer
@@ -108,6 +109,7 @@ class BaseCursor(connresource.ConnectionResource):
         protocol = con._protocol
 
         self._portal_name = con._get_unique_id('portal')
+        await con._close_last_portal(self._portal_name)
         buffer = await protocol.bind(self._state, self._args,
                                      self._portal_name,
                                      timeout)
