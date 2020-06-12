@@ -1101,6 +1101,8 @@ class Connection(metaclass=ConnectionMeta):
         reset_query = self._get_reset_query()
 
         if self._protocol.is_in_transaction() or self._top_xact is not None:
+            await self._close_default_portal()
+
             if self._top_xact is None or not self._top_xact._managed:
                 # Managed transactions are guaranteed to __aexit__
                 # correctly.
