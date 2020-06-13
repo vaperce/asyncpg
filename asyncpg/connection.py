@@ -44,7 +44,7 @@ class Connection(metaclass=ConnectionMeta):
                  '_top_xact', '_aborted',
                  '_pool_release_ctr', '_stmt_cache', '_stmts_to_close',
                  '_listeners', '_server_version', '_server_caps',
-                 '_intro_query', '_reset_query', '_proxy',
+                 '_intro_query', '_reset_query', '_proxy', '_last_portal',
                  '_stmt_exclusive_section', '_config', '_params', '_addr',
                  '_log_listeners', '_cancellations', '_source_traceback',
                  '__weakref__')
